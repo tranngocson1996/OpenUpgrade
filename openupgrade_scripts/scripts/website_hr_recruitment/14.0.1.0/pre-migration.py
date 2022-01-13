@@ -11,6 +11,6 @@ def migrate(env, version):
             "hr_job_officer",
             "hr_job_portal",
             "hr_job_public",
-         ],
+        ],
         True,
     )
