@@ -11,3 +11,11 @@ def migrate(env, version):
         env,
         ["website_event_track.event_type_data_tracks"],
     )
+
+    openupgrade.delete_record_translations(
+        env.cr,
+        "website_event_track",
+        [
+            "mail_template_data_track_confirmation",
+        ],
+    )
