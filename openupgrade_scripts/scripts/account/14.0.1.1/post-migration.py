@@ -410,10 +410,11 @@ def _create_fixed_vietnam_bank_accounts(env):
                 """
                 UPDATE account_account
                 SET code = '{1}', name = '{0}'
-                WHERE code = '1121';
+                WHERE code = '1121' AND company_id = {2};
                 """.format(
                     _("Bank"),
                     default_account_code,
+                    company.id,
                 ),
             )
             _logger.warning(
