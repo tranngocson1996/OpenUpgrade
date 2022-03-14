@@ -473,10 +473,15 @@ def _create_fixed_vietnam_bank_accounts(env):
             [("chart_template_id", "=", vn_chart_template.id)]
         )
         for company in companies:
-            default_account_code = env["account.account"]._search_new_account_code(
+            default_bank_account_code = env["account.account"]._search_new_account_code(
                 company,
                 vn_chart_template.code_digits,
                 company.bank_account_code_prefix or "",
+            )
+            default_cash_account_code = env["account.account"]._search_new_account_code(
+                company,
+                vn_chart_template.code_digits,
+                company.cash_account_code_prefix or "",
             )
 
             openupgrade.logged_query(
@@ -485,16 +490,28 @@ def _create_fixed_vietnam_bank_accounts(env):
                 UPDATE account_account
                 SET code = '{1}', name = '{0}'
                 WHERE code = '1121' AND company_id = {2};
+                UPDATE account_account
+                SET code = '{4}', name = '{3}'
+                WHERE code = '1111' AND company_id = {2};
                 """.format(
                     _("Bank"),
-                    default_account_code,
+                    default_bank_account_code,
                     company.id,
+                    _("Cash"),
+                    default_cash_account_code,
                 ),
             )
+
+            _logger.warning(
+                "Account with code '1111' has been changed to"
+                " account with code %s on company %s!"
+                % (default_cash_account_code, company.name)
+            )
+
             _logger.warning(
                 "Account with code '1121' has been changed to"
                 " account with code %s on company %s!"
-                % (default_account_code, company.name)
+                % (default_bank_account_code, company.name)
             )
 
             liquidity_account_type = env.ref(
@@ -505,6 +522,7 @@ def _create_fixed_vietnam_bank_accounts(env):
             ( name, code, user_type_id,
             company_id, internal_type, internal_group, reconcile)
             VALUES
+            ('{4}', '1111', {0}, {1}, '{2}', '{3}', false),
             ('{4}', '1121', {0}, {1}, '{2}', '{3}', false)
             """
             if not env["account.account"].search(
