@@ -584,20 +584,14 @@ def fill_statement_lines_with_no_move(env):
             [("deprecated", "=", True), ("company_id", "=", st_line.company_id.id)]
         )
         deprecated_accounts.deprecated = False
-        try:
-            st_line._synchronize_to_moves(
-                [
-                    "payment_ref",
-                    "amount",
-                    "amount_currency",
-                    "foreign_currency_id",
-                    "currency_id",
-                    "partner_id",
+        move.write(
+            {
+                "line_ids": [
+                    (0, 0, line_vals)
+                    for line_vals in st_line._prepare_move_line_default_vals()
                 ]
-            )
-        except Exception as e:
-            _logger.error("Failed for statement line with id %s: %s", st_line.id, e)
-            raise
+            }
+        )
         deprecated_accounts.deprecated = True
 
     openupgrade.logged_query(
