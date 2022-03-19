@@ -465,70 +465,6 @@ def unfold_manual_account_groups(env):
     AccountGroup._parent_store_compute()
 
 
-def _create_fixed_vietnam_bank_accounts(env):
-    """Create new accounts in v14"""
-    vn_chart_template = env.ref("l10n_vn.vn_template", raise_if_not_found=False)
-    if vn_chart_template:
-        companies = env["res.company"].search(
-            [("chart_template_id", "=", vn_chart_template.id)]
-        )
-        for company in companies:
-            default_account_code = env["account.account"]._search_new_account_code(
-                company,
-                vn_chart_template.code_digits,
-                company.bank_account_code_prefix or "",
-            )
-
-            openupgrade.logged_query(
-                env.cr,
-                """
-                UPDATE account_account
-                SET code = '{1}', name = '{0}'
-                WHERE code = '1121' AND company_id = {2};
-                """.format(
-                    _("Bank"),
-                    default_account_code,
-                    company.id,
-                ),
-            )
-            _logger.warning(
-                "Account with code '1121' has been changed to"
-                " account with code %s on company %s!"
-                % (default_account_code, company.name)
-            )
-
-            liquidity_account_type = env.ref(
-                "account.data_account_type_liquidity", raise_if_not_found=False
-            )
-            query = """
-            INSERT INTO account_account
-            ( name, code, user_type_id,
-            company_id, internal_type, internal_group, reconcile)
-            VALUES
-            ('{4}', '1121', {0}, {1}, '{2}', '{3}', false)
-            """
-            if not env["account.account"].search(
-                [("code", "=", "1122"), ("company_id", "=", company.id)]
-            ):
-                query += ",('{5}', '1122', {0}, {1}, '{2}', '{3}', false)"
-            if not env["account.account"].search(
-                [("code", "=", "1123"), ("company_id", "=", company.id)]
-            ):
-                query += ",('{6}', '1123', {0}, {1}, '{2}', '{3}', false)"
-            openupgrade.logged_query(
-                env.cr,
-                query.format(
-                    liquidity_account_type.id,
-                    company.id,
-                    liquidity_account_type.type,
-                    liquidity_account_type.internal_group,
-                    _("Vietnamese Dong"),
-                    _("Foreign currencies"),
-                    _("Monetary Gold"),
-                ),
-            )
-
-
 def fill_company_account_journal_suspense_account_id(env):
     companies = env["res.company"].search([("chart_template_id", "!=", False)])
     for company in companies:
@@ -874,7 +810,6 @@ def migrate(env, version):
     unfold_manual_account_groups(env)
     # Launch a recomputation of the account groups after previous changes
     env["account.account"].search([])._compute_account_group()
-    _create_fixed_vietnam_bank_accounts(env)
     fill_company_account_journal_suspense_account_id(env)
     fill_statement_lines_with_no_move(env)
     fill_account_journal_payment_credit_debit_account_id(env)
