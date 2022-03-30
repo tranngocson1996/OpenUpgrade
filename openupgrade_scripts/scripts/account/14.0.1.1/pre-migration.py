@@ -328,7 +328,9 @@ def add_move_id_field_account_payment(env):
         UPDATE account_payment ap
         SET move_id = am.id
         FROM account_move am
-        WHERE ap.move_id IS NULL AND am.payment_id = ap.id""",
+        WHERE ap.move_id IS NULL
+            AND am.payment_id = ap.id
+            AND ap.state NOT IN ('draft', 'cancelled')""",
     )
     # 2. try to match on payment move_name or payment_reference (if move_name empty)
     openupgrade.logged_query(
@@ -341,7 +343,8 @@ def add_move_id_field_account_payment(env):
             AND ap.move_id IS NULL
             AND am.name NOT IN ('', '/')
             AND COALESCE(NULLIF(ap.move_name, ''), ap.payment_reference) = am.name
-            AND am.company_id = aj.company_id""",
+            AND am.company_id = aj.company_id
+            AND ap.state NOT IN ('draft', 'cancelled')""",
     )
     # 3. match on payment communication with move payment_reference, ref or name
     openupgrade.logged_query(
@@ -351,9 +354,9 @@ def add_move_id_field_account_payment(env):
         SET move_id = am.id
         FROM account_move am, account_journal aj
         WHERE ap.journal_id = aj.id AND am.company_id = aj.company_id AND
-            ap.move_id IS NULL AND ap.communication NOT IN ('', '/') AND (
-            am.payment_reference = ap.communication OR am.ref = ap.communication
-            OR am.name = ap.communication)
+            ap.state NOT IN ('draft', 'cancelled') AND
+            ap.move_id IS NULL AND ap.communication NOT IN ('', '/') AND
+            am.ref = ap.communication
         """,
     )
     openupgrade.logged_query(
