@@ -1,8 +1,4 @@
-import logging
-
 from openupgradelib import openupgrade
-
-_logger = logging.getLogger(__name__)
 
 
 def convert_field_to_html(env):
@@ -21,21 +17,29 @@ def fast_fill_account_move_always_tax_exigible(env):
         ALTER TABLE account_move
         ADD COLUMN IF NOT EXISTS always_tax_exigible boolean""",
     )
+    # record.is_invoice(True) is True
+    openupgrade.logged_query(
+        env.cr,
+        """
+        UPDATE account_move
+        SET always_tax_exigible = false
+        WHERE move_type IN (
+            'out_invoice',
+            'out_refund',
+            'in_refund',
+            'in_invoice',
+            'out_receipt',
+            'in_receipt')""",
+    )
+    # record._collect_tax_cash_basis_values() is False
+    # 1. not values['to_process_lines'] or not has_term_lines
     openupgrade.logged_query(
         env.cr,
         """
         UPDATE account_move am
         SET always_tax_exigible =
             CASE
-                WHEN am.move_type NOT IN (
-                    'out_invoice',
-                    'out_refund',
-                    'in_refund',
-                    'in_invoice',
-                    'out_receipt',
-                    'in_receipt'
-                ) AND
-                (
+                WHEN
                     (SELECT COUNT(aml.id)
                     FROM account_move_line aml
                     JOIN account_account aa ON aa.id = aml.account_id
@@ -59,30 +63,23 @@ def fast_fill_account_move_always_tax_exigible(env):
                             WHERE aml.move_id = am.id
                         )
                     )
-                )
                 THEN true
-                END""",
+            END
+        WHERE am.always_tax_exigible IS NULL""",
     )
+    # 2. len(currencies) != 1
     openupgrade.logged_query(
         env.cr,
         """
         UPDATE account_move am
         SET always_tax_exigible =
             CASE
-                WHEN am.move_type NOT IN (
-                        'out_invoice',
-                        'out_refund',
-                        'in_refund',
-                        'in_invoice',
-                        'out_receipt',
-                        'in_receipt'
-                    ) AND
-                    (SELECT COUNT(aml.currency_id)
-                    FROM account_move_line aml
-                    WHERE aml.move_id = am.id) != 1
+                WHEN (SELECT COUNT(aml.currency_id)
+                     FROM account_move_line aml
+                     WHERE aml.move_id = am.id) != 1
                 THEN true
                 ELSE false
-                END
+            END
         WHERE am.always_tax_exigible IS NULL""",
     )
 
@@ -347,6 +344,14 @@ def fast_fill_account_payment_outstanding_account_id(env):
 def migrate(env, version):
     openupgrade.set_xml_ids_noupdate_value(
         env, "account", ["action_account_resequence"], True
+    )
+    openupgrade.rename_columns(
+        env.cr,
+        {
+            "account_move": [
+                ("tax_cash_basis_move_id", "tax_cash_basis_origin_move_id"),
+            ],
+        },
     )
     convert_field_to_html(env)
     fast_fill_account_move_always_tax_exigible(env)
