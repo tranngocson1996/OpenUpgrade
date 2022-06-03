@@ -1,17 +1,6 @@
 from openupgradelib import openupgrade
 
 
-def copy_fields(env):
-    openupgrade.copy_columns(
-        env.cr,
-        {
-            "payment_acquirer": [
-                ("journal_id", None, None),
-            ],
-        },
-    )
-
-
 def fast_fill_payment_token_name(env):
     openupgrade.logged_query(
         env.cr,
@@ -27,17 +16,17 @@ def fast_fill_payment_transaction_partner_id(env):
         env.cr,
         """
         UPDATE payment_transaction pt
-        SET partner_id = (SELECT ap.partner_id
-            FROM account_payment ap
-            WHERE pt.partner_id IS NULL AND
-            ap.payment_transaction_id = pt.id
-            LIMIT 1)""",
+        SET partner_id = ap.partner_id
+        FROM account_payment ap
+        WHERE ap.partner_id IS NOT NULL
+            AND pt.partner_id IS NULL
+            AND ap.payment_transaction_id = pt.id
+        """,
     )
 
 
 @openupgrade.migrate()
 def migrate(env, version):
-    copy_fields(env)
     fast_fill_payment_token_name(env)
     openupgrade.rename_fields(
         env,

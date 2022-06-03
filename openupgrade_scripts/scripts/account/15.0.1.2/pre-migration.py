@@ -1,18 +1,6 @@
 from openupgradelib import openupgrade
 
 
-def copy_fields(env):
-    openupgrade.copy_columns(
-        env.cr,
-        {
-            "account_journal": [
-                ("payment_debit_account_id", None, None),
-                ("payment_credit_account_id", None, None),
-            ],
-        },
-    )
-
-
 def _convert_field_to_html(env):
     openupgrade.convert_field_to_html(
         env.cr, "res_company", "invoice_terms", "invoice_terms"
@@ -418,7 +406,6 @@ def _fast_fill_account_payment_outstanding_account_id(env):
 
 @openupgrade.migrate()
 def migrate(env, version):
-    copy_fields(env)
     openupgrade.set_xml_ids_noupdate_value(
         env, "account", ["action_account_resequence"], True
     )

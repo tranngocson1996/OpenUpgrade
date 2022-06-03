@@ -16,7 +16,9 @@ def fill_payment_transaction_last_state_change(env):
         env.cr,
         """
         UPDATE payment_transaction
-        SET last_state_change = write_date""",
+        SET last_state_change = write_date
+        WHERE last_state_change IS NULL
+        """,
     )
 
 
@@ -27,7 +29,10 @@ def fill_payment_transaction_partner_state_id(env):
         UPDATE payment_transaction pt
         SET partner_state_id = rp.state_id
         FROM res_partner rp
-        WHERE rp.id = pt.partner_id.id""",
+        WHERE rp.id = pt.partner_id
+            AND rp.state_id IS NOT NULL
+            AND partner_state_id IS NULL
+        """,
     )
 
 
