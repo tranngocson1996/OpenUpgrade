@@ -46,7 +46,6 @@ def _fast_fill_account_move_always_tax_exigible(env):
                      FROM account_move_line aml
                      WHERE aml.move_id = am.id) > 1
                 THEN true
-                ELSE false
             END
         WHERE am.always_tax_exigible IS NULL""",
     )
@@ -69,7 +68,6 @@ def _fast_fill_account_move_always_tax_exigible(env):
                     WHERE aml.move_id = am.id
                     AND aat.type IN ('receivable', 'payable')) > 0
                 THEN false
-                ELSE true
             END
         WHERE am.always_tax_exigible IS NULL""",
     )
@@ -90,7 +88,7 @@ def _fast_fill_account_move_always_tax_exigible(env):
                     JOIN account_tax tax ON tax.tax_exigibility = 'on_payment'
                         AND aml.tax_line_id = tax.id
                     WHERE aml.move_id = am.id) > 0
-                THEN false
+                THEN NULL
                 ELSE true
             END
         WHERE am.always_tax_exigible IS NULL""",
@@ -112,7 +110,7 @@ def _fast_fill_account_move_always_tax_exigible(env):
                     AND aml.move_id = am.id
                 JOIN account_tax tax ON tax.tax_exigibility = 'on_payment'
                     AND tax.id = aml_tax_rel.account_tax_id) > 0
-            THEN false
+            THEN NULL
             ELSE true
             END
         WHERE am.always_tax_exigible IS NULL""",
@@ -167,7 +165,6 @@ def _fast_fill_account_move_line_tax_tag_invert(env):
                 WHERE aml.id = account_move_line_id) > 0
                     AND am.move_type IN ('out_invoice', 'in_refund', 'out_receipt')
             THEN true
-            ELSE false
             END
         FROM account_move am
         WHERE tax_repartition_line_id IS NULL
@@ -186,7 +183,6 @@ def _fast_fill_account_move_line_tax_tag_invert(env):
         SET tax_tag_invert = CASE
             WHEN am.move_type IN ('out_invoice', 'in_refund', 'out_receipt')
             THEN true
-            ELSE false
             END
         FROM account_move am
         WHERE am.id = aml.move_id AND am.move_type != 'entry'
@@ -216,7 +212,6 @@ def _fast_fill_account_move_line_tax_tag_invert(env):
                 THEN (SELECT refund_tax_id
                     FROM account_tax_repartition_line
                     WHERE id = aml.tax_repartition_line_id) IS NULL
-                ELSE false
             END
         FROM account_move am
         WHERE am.id = aml.move_id AND am.move_type = 'entry'
@@ -240,6 +235,7 @@ def _fast_fill_account_move_line_tax_tag_invert(env):
                     WHERE aml.id = account_move_line_id
                     LIMIT 1) = 'sale'
                 THEN aml.debit > 0
+                ELSE false
             END
         FROM account_move am
         WHERE am.id = aml.move_id AND
@@ -394,7 +390,6 @@ def _fast_fill_account_payment_outstanding_account_id(env):
             WHEN ap.payment_type = 'outbound'
                 AND c.account_journal_payment_credit_account_id IS NOT NULL
                 THEN c.account_journal_payment_credit_account_id
-            ELSE null
             END
         FROM account_move am
         JOIN account_journal aj ON am.journal_id = aj.id
