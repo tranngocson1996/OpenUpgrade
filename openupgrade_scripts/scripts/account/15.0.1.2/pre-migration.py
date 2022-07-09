@@ -1,6 +1,18 @@
 from openupgradelib import openupgrade
 
 
+def copy_fields(env):
+    openupgrade.copy_columns(
+        env.cr,
+        {
+            "account_journal": [
+                ("payment_debit_account_id", None, None),
+                ("payment_credit_account_id", None, None),
+            ],
+        },
+    )
+
+
 def _convert_field_to_html(env):
     openupgrade.convert_field_to_html(
         env.cr, "res_company", "invoice_terms", "invoice_terms"
@@ -267,11 +279,24 @@ def _create_account_payment_method_line(env):
         env.cr,
         """
         INSERT INTO account_payment_method_line
-        (name, payment_method_id, journal_id)
-        SELECT apm.name, apm.id, aj.id
+        (name, payment_method_id, journal_id, payment_account_id)
+        SELECT apm.name, apm.id, aj.id, aj.payment_debit_account_id
         FROM account_payment_method apm
         JOIN account_journal aj ON aj.type IN ('bank', 'cash')
-        WHERE apm.code = 'manual'
+        WHERE apm.code = 'manual' AND
+        apm.payment_type = 'inbound'
+        """,
+    )
+    openupgrade.logged_query(
+        env.cr,
+        """
+        INSERT INTO account_payment_method_line
+        (name, payment_method_id, journal_id, payment_account_id)
+        SELECT apm.name, apm.id, aj.id, aj.payment_credit_account_id
+        FROM account_payment_method apm
+        JOIN account_journal aj ON aj.type IN ('bank', 'cash')
+        WHERE apm.code = 'manual' AND
+        apm.payment_type = 'outbound'
         """,
     )
 
@@ -288,9 +313,27 @@ def _fast_fill_account_payment_payment_method_line_id(env):
         """
         UPDATE account_payment ap
         SET payment_method_line_id = apml.id
-        FROM account_move am
-        JOIN account_payment_method_line apml ON apml.journal_id = am.journal_id
-        WHERE ap.move_id = am.id
+        FROM account_payment_method apm
+        JOIN account_payment_method_line apml
+            ON apm.id = apml.payment_method_id
+        JOIN account_move am
+            ON am.journal_id = apml.journal_id
+        WHERE ap.payment_type = 'inbound' AND
+        apm.payment_type = 'inbound'
+        """,
+    )
+    openupgrade.logged_query(
+        env.cr,
+        """
+        UPDATE account_payment ap
+        SET payment_method_line_id = apml.id
+        FROM account_payment_method apm
+        JOIN account_payment_method_line apml
+            ON apm.id = apml.payment_method_id
+        JOIN account_move am
+            ON am.journal_id = apml.journal_id
+        WHERE ap.payment_type = 'outbound' AND
+        apm.payment_type = 'outbound'
         """,
     )
 
@@ -410,6 +453,7 @@ def _delete_records_conflict(env):
 
 @openupgrade.migrate()
 def migrate(env, version):
+    copy_fields(env)
     openupgrade.set_xml_ids_noupdate_value(
         env, "account", ["action_account_resequence"], True
     )

@@ -1,6 +1,17 @@
 from openupgradelib import openupgrade
 
 
+def copy_fields(env):
+    openupgrade.copy_columns(
+        env.cr,
+        {
+            "payment_acquirer": [
+                ("journal_id", None, None),
+            ],
+        },
+    )
+
+
 def fast_fill_payment_token_name(env):
     openupgrade.logged_query(
         env.cr,
@@ -52,6 +63,7 @@ def fast_fill_payment_transaction_partner_id(env):
 
 @openupgrade.migrate()
 def migrate(env, version):
+    copy_fields(env)
     fast_fill_payment_token_name(env)
     fast_fill_payment_transaction_partner_id(env)
     openupgrade.rename_fields(
