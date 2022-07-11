@@ -12,11 +12,6 @@ def _create_account_payment_method_line(env):
         FROM account_payment_method apm
         JOIN account_journal aj ON aj.type = 'bank'
         WHERE apm.code = 'check_printing'
-            AND (
-                SELECT COUNT (*)
-                FROM payment_acquirer pa
-                WHERE pa.provider NOT IN ('none', 'manual')
-                    AND aj.id = pa.journal_id LIMIT 1) = 0
         """,
     )
 
